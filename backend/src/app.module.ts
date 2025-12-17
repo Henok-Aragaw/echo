@@ -15,10 +15,11 @@ import { DailyMemoryModule } from './modules/daily-memory/daily-memory.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CloudinaryProvider } from './lib/cloudinary';
 import { UserController } from './user/user.controller';
+import { HealthModule } from './health/health.module';
 
 
 @Module({
-  imports: [ScheduleModule.forRoot(),AuthModule, UserModule, PrismaModule, AiModule, FragmentsModule, DailyMemoryModule],
+  imports: [ScheduleModule.forRoot(),AuthModule, UserModule, PrismaModule, AiModule, FragmentsModule, DailyMemoryModule, HealthModule],
   controllers: [AppController, AuthController, FragmentsController, UserController],
   providers: [AppService, AuthService, PrismaService, FragmentsService, CloudinaryProvider],
 })
