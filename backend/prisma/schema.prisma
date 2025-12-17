@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  // FIX: Add @default(auto()) and @db.ObjectId
+  //@default(auto()) and @db.ObjectId
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String
   email         String
@@ -20,12 +20,18 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+
+  //New Relation
+
+  fragments     Fragment[]
+  dailyMemories DailyMemory[]
+  
   @@unique([email])
   @@map("user")
 }
 
 model Session {
-  // FIX: Add @default(auto()) and @db.ObjectId
+  // @default(auto()) and @db.ObjectId
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   expiresAt DateTime
   token     String
@@ -34,7 +40,7 @@ model Session {
   ipAddress String?
   userAgent String?
   
-  // FIX: Foreign key must also be marked as ObjectId
+  // Foreign key must also be marked as ObjectId
   userId    String   @db.ObjectId 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -44,12 +50,12 @@ model Session {
 }
 
 model Account {
-  // FIX: Add @default(auto()) and @db.ObjectId
+  // @default(auto()) and @db.ObjectId
   id                    String    @id @default(auto()) @map("_id") @db.ObjectId
   accountId             String
   providerId            String
   
-  // FIX: Foreign key must also be marked as ObjectId
+  // Foreign key must also be marked as ObjectId
   userId                String    @db.ObjectId
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
@@ -68,7 +74,7 @@ model Account {
 }
 
 model Verification {
-  // FIX: Add @default(auto()) and @db.ObjectId
+  //@default(auto()) and @db.ObjectId
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   identifier String
   value      String
@@ -78,4 +84,51 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+
+enum FragmentType {
+  TEXT
+  IMAGE
+  LINK
+  LOCATION
+}
+
+model Fragment {
+  id              String     @id   @default(auto()) @map("_id") @db.ObjectId
+  userId          String     @db.ObjectId
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type            FragmentType
+
+  content         String   // text, link url, or location string
+  mediaUrl        String?
+
+  createdAt       DateTime   @default(now())
+
+  insight         Insight? 
+
+  @@map("fragments")
+}
+
+model Insight {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  fragmentId String   @unique @db.ObjectId
+  fragment   Fragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  content    String   // The AI reflection
+  createdAt  DateTime @default(now())
+
+  @@map("insights")
+}
+
+model DailyMemory {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime // Normalized to midnight of that day
+  summary   String   // The AI summary of the day
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_memories")
 }

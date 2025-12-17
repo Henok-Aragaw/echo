@@ -22,6 +22,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }
+  },
 
   plugins: [
     bearer()
@@ -31,10 +37,17 @@ export const auth = betterAuth({
     database: {
       generateId: false,
     },
+    useSecureCookies: false,
+    cookie: {
+      secure: false,
+      sameSite: "lax",
+    }
   },
   
   trustedOrigins: [
     "http://localhost:3000",
-    "myapp://"
+    "myapp://",
+    // "http://127.0.0.1:5500",
+    "http://localhost:5500"
   ],
 });
