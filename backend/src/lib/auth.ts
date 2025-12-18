@@ -1,12 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-// Only import types statically
-import type { BetterAuthOptions } from "better-auth"; 
 
 const prisma = new PrismaClient();
 
 let authInstance: any = null;
 
-// Helper to prevent TypeScript from converting import() to require()
 const _importDynamic = new Function('modulePath', 'return import(modulePath)');
 
 export const getAuth = async () => {
@@ -14,7 +11,7 @@ export const getAuth = async () => {
     return authInstance;
   }
 
-  // Use the helper to dynamically import ESM modules
+  // 1. Load dependencies dynamically
   const { betterAuth } = await _importDynamic("better-auth");
   const { prismaAdapter } = await _importDynamic("better-auth/adapters/prisma");
   const { bearer } = await _importDynamic("better-auth/plugins");
@@ -60,9 +57,19 @@ export const getAuth = async () => {
       "http://localhost:3000",
       "myapp://",
       "http://localhost:5500",
-      process.env.FRONTEND_URL || "" 
+      process.env.FRONTEND_URL || ""
     ],
   });
 
   return authInstance;
 };
+
+
+function _forceBundling() {
+    if (false) {
+        require("better-auth");
+        require("better-auth/adapters/prisma");
+        require("better-auth/plugins");
+        require("better-auth/node"); 
+    }
+}
