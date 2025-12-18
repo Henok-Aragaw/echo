@@ -1,53 +1,63 @@
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
-import { bearer } from "better-auth/plugins";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const auth = betterAuth({
-  database: prismaAdapter(prisma, {
-    provider: "mongodb",
-  }),
+// Variable to cache the instance so we don't recreate it on every request
+let authInstance: any = null;
 
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
+export const getAuth = async () => {
+  if (authInstance) {
+    return authInstance;
+  }
 
-  user:{
-    deleteUser: {
-      enabled: true
-    }
-  },
+  // Dynamically import ESM modules
+  const { betterAuth } = await import("better-auth");
+  const { prismaAdapter } = await import("better-auth/adapters/prisma");
+  const { bearer } = await import("better-auth/plugins");
 
-  emailAndPassword: {
-    enabled: true,
-  },
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }
-  },
+  authInstance = betterAuth({
+    database: prismaAdapter(prisma, {
+      provider: "mongodb",
+    }),
 
-  plugins: [
-    bearer()
-  ],
+    secret: process.env.BETTER_AUTH_SECRET,
+    baseURL: process.env.BETTER_AUTH_URL,
 
-  advanced: {
-    database: {
-      generateId: false,
+    user: {
+      deleteUser: {
+        enabled: true,
+      },
     },
-    useSecureCookies: false,
-    cookie: {
-      secure: false,
-      sameSite: "lax",
-    }
-  },
-  
-  trustedOrigins: [
-    "http://localhost:3000",
-    "myapp://",
-    // "http://127.0.0.1:5500",
-    "http://localhost:5500"
-  ],
-});
+
+    emailAndPassword: {
+      enabled: true,
+    },
+    socialProviders: {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      },
+    },
+
+    plugins: [bearer()],
+
+    advanced: {
+      database: {
+        generateId: false,
+      },
+      useSecureCookies: false,
+      cookie: {
+        secure: false,
+        sameSite: "lax",
+      },
+    },
+
+    trustedOrigins: [
+      "http://localhost:3000",
+      "myapp://",
+      "http://localhost:5500",
+    ],
+  });
+
+  return authInstance;
+};

@@ -10,7 +10,7 @@ import {
 import { Response, Request } from 'express'; 
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
-import { auth } from '../lib/auth';
+import { getAuth } from '../lib/auth'; // Changed import
 
 @Controller('user')
 export class UserController {
@@ -34,6 +34,8 @@ export class UserController {
     try {
         console.log("Attempting to delete user:", user.id);
 
+        // Initialize auth asynchronously
+        const auth = await getAuth();
 
         await auth.api.deleteUser({
             body: {}, 

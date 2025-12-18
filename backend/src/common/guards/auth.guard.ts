@@ -5,12 +5,15 @@ import {
     UnauthorizedException
 } from "@nestjs/common"
 
-import { auth } from "../../lib/auth";
+import { getAuth } from "../../lib/auth"; 
 
 @Injectable()
  export class AuthGuard implements CanActivate {
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
+
+        // Initialize auth asynchronously
+        const auth = await getAuth();
 
         const session = await auth.api.getSession({
             headers: request.headers,
