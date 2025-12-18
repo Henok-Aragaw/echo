@@ -1,4 +1,4 @@
-import 'reflect-metadata'
+import 'reflect-metadata'; 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
@@ -11,12 +11,19 @@ const createNestServer = async (expressInstance) => {
     AppModule,
     new ExpressAdapter(expressInstance),
   );
-  // Enable CORS if needed
-  app.enableCors(); 
+
+  app.setGlobalPrefix('api'); 
+
+  app.enableCors({
+    origin: [process.env.FRONTEND_URL || '', 'my-app://'], 
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  });
+  
   await app.init();
 };
 
-// Ensure the server is initialized only once (Cold Start Pattern)
 let isInitialized = false;
 
 export default async function handler(req, res) {
