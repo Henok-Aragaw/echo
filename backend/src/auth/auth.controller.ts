@@ -5,9 +5,10 @@ import { getAuth } from '../lib/auth';
 export class AuthController {
     @All('*path')
     async handleAuth(@Req() req, @Res() res) {
-        const { toNodeHandler } = await import('better-auth/node');
+        const _importDynamic = new Function('modulePath', 'return import(modulePath)');
         
-        // Initialize auth asynchronously
+        const { toNodeHandler } = await _importDynamic('better-auth/node');
+        
         const auth = await getAuth();
         
         return toNodeHandler(auth)(req, res);

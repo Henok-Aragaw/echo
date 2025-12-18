@@ -10,7 +10,7 @@ import {
 import { Response, Request } from 'express'; 
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
-import { getAuth } from '../lib/auth'; // Changed import
+import { getAuth } from '../lib/auth'; // Standard import is fine here
 
 @Controller('user')
 export class UserController {
@@ -32,9 +32,7 @@ export class UserController {
     @Res() res: Response 
   ) {
     try {
-        console.log("Attempting to delete user:", user.id);
-
-        // Initialize auth asynchronously
+      
         const auth = await getAuth();
 
         await auth.api.deleteUser({
@@ -44,11 +42,9 @@ export class UserController {
 
         return res.status(HttpStatus.OK).json({ message: 'Account deleted successfully' });
     } catch (error) {
-        console.error("Better Auth Delete Error:", error);
-        
+        console.error("Delete Error:", error);
         return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ 
-            error: 'Failed to delete account',
-            details: error instanceof Error ? error.message : String(error)
+            error: 'Failed to delete account'
         });
     }
   }
