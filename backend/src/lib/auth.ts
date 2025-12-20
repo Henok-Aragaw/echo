@@ -55,7 +55,8 @@ export const getAuth = async () => {
 
     trustedOrigins: [
       "http://localhost:3000", 
-      "myapp://",              
+      "myapp://",       
+      "echo-app://",       
       "http://localhost:5500", 
       "exp://192.168.1.100:8081", 
       "http://192.168.1.100:8081", 

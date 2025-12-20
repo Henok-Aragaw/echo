@@ -15,7 +15,7 @@ const createNestServer = async (expressInstance) => {
   app.setGlobalPrefix('api'); 
 
   app.enableCors({
-    origin: [process.env.FRONTEND_URL || '', 'my-app://'], 
+    origin: ['echo-app://', process.env.FRONTEND_URL || '', 'my-app://'], 
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

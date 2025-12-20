@@ -9,7 +9,9 @@ export const api = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
+        'Origin': 'echo-app://',
     }
+    
 })
 
 // Request Interceptor Attach Bearer Token
