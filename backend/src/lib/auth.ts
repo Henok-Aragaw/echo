@@ -12,12 +12,24 @@ export const getAuth = async () => {
     return authInstance;
   }
 
+  try {
+    require.resolve("better-auth");
+    require.resolve("better-auth/adapters/prisma");
+    require.resolve("better-auth/plugins");
+    require.resolve("better-auth/api");
+    require.resolve("@better-auth/expo"); 
+  } catch (e) {
+   
+  }
+
+  // 1. Dynamic Imports (Runtime)
   const { betterAuth } = await _importDynamic("better-auth");
   const { prismaAdapter } = await _importDynamic("better-auth/adapters/prisma");
   const { bearer } = await _importDynamic("better-auth/plugins");
   
   const { APIError, createAuthMiddleware } = await _importDynamic("better-auth/api");
   
+
   const { expo } = await _importDynamic("@better-auth/expo");
 
   authInstance = betterAuth({
@@ -75,7 +87,7 @@ export const getAuth = async () => {
 
     plugins: [
         bearer(),
-        expo() 
+        expo()
     ],
 
     advanced: {
