@@ -3,15 +3,20 @@ import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } fro
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/auth-store';
+import { useColorScheme } from 'nativewind';
 
 export default function SignUp() {
   const router = useRouter();
   const { signUp } = useAuthStore();
+  const { colorScheme } = useColorScheme();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Dynamic placeholder color
+  const placeholderColor = colorScheme === 'dark' ? '#57534e' : '#a8a29e';
 
   const handleSignUp = async () => {
     if(!email || !password || !name) return Alert.alert("Error", "Please fill all fields");
@@ -21,37 +26,37 @@ export default function SignUp() {
       await signUp(email, password, name);
       router.replace('/(tabs)/home');
     } catch (error) {
-      Alert.alert("Failed", "Could not create account");
+      Alert.alert(`Failed, Could not create account, ${error}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-stone-950 px-6 justify-center">
+    <SafeAreaView className="flex-1 bg-stone-50 dark:bg-stone-950 px-6 justify-center">
       <View className="mb-10">
-        <Text className="text-4xl text-stone-100 font-light mb-2">Create Account</Text>
+        <Text className="text-4xl text-stone-900 dark:text-stone-100 font-light mb-2">Create Account</Text>
         <Text className="text-stone-500 text-lg">Start your memory journey.</Text>
       </View>
 
       <View className="space-y-4">
         <View>
-            <Text className="text-stone-400 mb-2 ml-1 text-sm uppercase tracking-wider">Name</Text>
+            <Text className="text-stone-500 dark:text-stone-400 mb-2 ml-1 text-sm uppercase tracking-wider">Name</Text>
             <TextInput
             placeholder="Your Name"
-            placeholderTextColor="#57534e"
-            className="bg-stone-900 text-stone-100 p-4 rounded-xl border border-stone-800"
+            placeholderTextColor={placeholderColor}
+            className="bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4 rounded-xl border border-stone-200 dark:border-stone-800"
             value={name}
             onChangeText={setName}
             />
         </View>
 
         <View>
-            <Text className="text-stone-400 mb-2 ml-1 text-sm uppercase tracking-wider">Email</Text>
+            <Text className="text-stone-500 dark:text-stone-400 mb-2 ml-1 text-sm uppercase tracking-wider">Email</Text>
             <TextInput
             placeholder="you@example.com"
-            placeholderTextColor="#57534e"
-            className="bg-stone-900 text-stone-100 p-4 rounded-xl border border-stone-800"
+            placeholderTextColor={placeholderColor}
+            className="bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4 rounded-xl border border-stone-200 dark:border-stone-800"
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}
@@ -59,11 +64,11 @@ export default function SignUp() {
         </View>
 
         <View>
-            <Text className="text-stone-400 mb-2 ml-1 text-sm uppercase tracking-wider">Password</Text>
+            <Text className="text-stone-500 dark:text-stone-400 mb-2 ml-1 text-sm uppercase tracking-wider">Password</Text>
             <TextInput
             placeholder="••••••••"
-            placeholderTextColor="#57534e"
-            className="bg-stone-900 text-stone-100 p-4 rounded-xl border border-stone-800"
+            placeholderTextColor={placeholderColor}
+            className="bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4 rounded-xl border border-stone-200 dark:border-stone-800"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -73,12 +78,12 @@ export default function SignUp() {
         <TouchableOpacity 
           onPress={handleSignUp}
           disabled={loading}
-          className="bg-stone-100 h-14 rounded-xl items-center justify-center mt-4"
+          className="bg-stone-900 dark:bg-stone-100 h-14 rounded-xl items-center justify-center mt-4 shadow-sm"
         >
           {loading ? (
-             <ActivityIndicator color="black" />
+             <ActivityIndicator color={colorScheme === 'dark' ? "black" : "white"} />
           ) : (
-             <Text className="text-stone-950 font-bold text-lg">Sign Up</Text>
+             <Text className="text-stone-50 dark:text-stone-950 font-bold text-lg">Sign Up</Text>
           )}
         </TouchableOpacity>
 
@@ -86,7 +91,7 @@ export default function SignUp() {
           <Text className="text-stone-500">Already have an account? </Text>
           <Link href="/(auth)/sign-in" asChild>
             <TouchableOpacity>
-              <Text className="text-stone-200 font-medium">Log in</Text>
+              <Text className="text-stone-900 dark:text-stone-200 font-medium">Log in</Text>
             </TouchableOpacity>
           </Link>
         </View>

@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { normalizeName, VALID_DOMAIN } from "./utils";
 
 const prisma = new PrismaClient();
 
@@ -27,16 +29,48 @@ export const getAuth = async () => {
       deleteUser: {
         enabled: true,
       },
+      changeEmail: {
+        enabled: true,
+      }
     },
 
     emailAndPassword: {
       enabled: true,
+      autoSignIn:true
     },
+
     socialProviders: {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID!,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       },
+    },
+
+    hooks: {
+      before:createAuthMiddleware(async(ctx) => {
+        if(ctx.path === '/sign-up/email') {
+          const email = String(ctx.body.email);
+          const domain = email.split("@")[1];
+
+          if(!VALID_DOMAIN().includes(domain)){
+              throw new APIError("BAD_REQUEST", {
+                  message:'Invalid domain, Please use a valid email.'
+              });
+          }
+
+          const name = normalizeName(ctx.body.name);
+
+          return {
+            context: {
+              ...ctx,
+              body: {
+                ...ctx.body,
+                name
+              }
+            }
+          }
+        }
+      })
     },
 
     plugins: [bearer()],

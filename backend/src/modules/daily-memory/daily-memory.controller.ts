@@ -18,11 +18,5 @@ export class DailyMemoryController {
     // Date format YYYY-MM-DD
     return this.service.getMemory(user.id, date);
   }
-
-//   @Post('trigger')
-//   async forceGeneration(@CurrentUser() user: any) {
-//   // Manually trigger the service for the current user
-//   await this.service.createMemoryForUser(user.id, new Date());
-//   return { message: "Memory generation triggered" };
-// }
+  
 }

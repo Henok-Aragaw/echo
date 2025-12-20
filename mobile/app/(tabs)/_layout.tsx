@@ -1,20 +1,26 @@
 import { Tabs } from 'expo-router';
 import { Home, Clock, Sparkles, Settings as SettingsIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 export default function TabsLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <Tabs
       screenOptions={{
-        headerShown: false, // We will build custom headers in screens or use simple ones
+        headerShown: false,
         tabBarStyle: { 
-            backgroundColor: '#0c0a09', 
-            borderTopColor: '#292524',
+            backgroundColor: isDark ? '#0c0a09' : '#ffffff', 
+            borderTopColor: isDark ? '#292524' : '#e7e5e4', 
             height: 60,
             paddingBottom: 8,
             paddingTop: 8,
+            elevation: 0,
+            shadowOpacity: 0,
         },
-        tabBarActiveTintColor: '#fafaf9', // stone-50
-        tabBarInactiveTintColor: '#78716c', // stone-500
+        tabBarActiveTintColor: isDark ? '#fafaf9' : '#0c0a09', 
+        tabBarInactiveTintColor: isDark ? '#78716c' : '#a8a29e', 
         tabBarShowLabel: false,
       }}
     >

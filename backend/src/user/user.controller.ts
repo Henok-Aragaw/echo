@@ -10,7 +10,7 @@ import {
 import { Response, Request } from 'express'; 
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
-import { getAuth } from '../lib/auth'; // Standard import is fine here
+import { getAuth } from '../lib/auth';
 
 @Controller('user')
 export class UserController {
