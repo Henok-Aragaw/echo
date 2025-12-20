@@ -1,4 +1,5 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export enum FragmentType {
   TEXT = 'TEXT',
@@ -9,6 +10,8 @@ export enum FragmentType {
 
 export class CreateFragmentDto {
   @IsEnum(FragmentType)
+  // Transform handles if frontend sends 'image' instead of 'IMAGE'
+  @Transform(({ value }) => value?.toString().toUpperCase()) 
   type: FragmentType;
 
   @IsNotEmpty()

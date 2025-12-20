@@ -10,34 +10,34 @@ export class FragmentsService {
   constructor(private aiService: AiService) {}
 
   async create(userId: string, dto: CreateFragmentDto) {
-    // Create the fragment in DB
+    // 1. Save to DB
     const fragment = await prisma.fragment.create({
       data: {
         userId,
-        type: dto.type,
+        type: dto.type, // Enum matches Prisma Enum
         content: dto.content,
         mediaUrl: dto.mediaUrl,
       },
     });
 
-    const aiType = dto.type.toLowerCase() as 'text' | 'image' | 'link' | 'location';
+    try {
+        const aiType = dto.type.toLowerCase() as 'text' | 'image' | 'link' | 'location';
+        
+        const aiContent = await this.aiService.generateFragmentInsight(
+            dto.content, 
+            aiType,
+            { caption: dto.content } 
+        );
 
-    // Generate AI Insight
-    const aiContent = await this.aiService.generateFragmentInsight(
-      dto.content, 
-      aiType,
-      { caption: dto.content } 
-    );
+        if (aiContent) {
+            await prisma.insight.create({
+                data: { fragmentId: fragment.id, content: aiContent },
+            });
+        }
+    } catch (error) {
+        console.error("AI Generation failed:", error);
+    }
 
-    // Save Insight
-    await prisma.insight.create({
-      data: {
-        fragmentId: fragment.id,
-        content: aiContent,
-      },
-    });
-
-    // Return combined data
     return this.getOne(fragment.id);
   }
 
@@ -45,16 +45,6 @@ export class FragmentsService {
     return prisma.fragment.findUnique({
       where: { id },
       include: { insight: true },
-    });
-  }
-
-  async getTimeline(userId: string, skip: number = 0, take: number = 20) {
-    return prisma.fragment.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: { insight: true },
-      skip: Number(skip),
-      take: Number(take),
     });
   }
 }

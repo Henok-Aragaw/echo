@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Alert, Keyboard } from 'react-native';
+import { Alert, Keyboard, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
-export type FragmentType = 'text' | 'image' | 'link' | 'location';
+export type FragmentType = 'TEXT' | 'IMAGE' | 'LINK' | 'LOCATION';
 
 export function useCapture() {
   const [content, setContent] = useState('');
-  const [type, setType] = useState<FragmentType>('text');
+  const [type, setType] = useState<FragmentType>('TEXT');
   const [mediaUri, setMediaUri] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [lastInsight, setLastInsight] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export function useCapture() {
   const queryClient = useQueryClient();
 
   const resetMode = () => {
-    setType('text');
+    setType('TEXT');
     setMediaUri(null);
     setContent('');
     setIsLocating(false);
@@ -25,23 +25,22 @@ export function useCapture() {
 
   const pickImage = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission Required', 'You need to allow access to your photos.');
-        return;
-      }
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') return Alert.alert('Permission needed', 'Please allow photo access.');
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.7,
       });
+
       if (!result.canceled) {
         setMediaUri(result.assets[0].uri);
-        setType('image');
-        if (!content) setContent(''); 
+        setType('IMAGE');
+  
       }
     } catch (e) {
-      Alert.alert('Error', 'Could not pick image.');
+      Alert.alert('Error', 'Could not load image.');
     }
   };
 
@@ -49,26 +48,25 @@ export function useCapture() {
     setIsLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Allow location access.');
-        return;
-      }
-      const location = await Location.getCurrentPositionAsync({});
-      let addressString = `${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`;
+      if (status !== 'granted') return Alert.alert('Permission Denied', 'Allow location access.');
+      
+      const loc = await Location.getCurrentPositionAsync({});
+      let address = `${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`;
+      
       try {
-        const address = await Location.reverseGeocodeAsync({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
+        const geo = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
         });
-        if (address[0]) {
-            addressString = `${address[0].city || ''}, ${address[0].region || address[0].country || ''}`;
-            if (addressString.startsWith(', ')) addressString = addressString.substring(2);
+        if (geo[0]) {
+            address = `${geo[0].city || ''}, ${geo[0].region || geo[0].country || ''}`.replace(/^, /, '');
         }
       } catch (e) {}
-      setContent(addressString);
-      setType('location');
+
+      setContent(address);
+      setType('LOCATION');
     } catch (error) {
-      Alert.alert('Location Error', 'Could not fetch your location.');
+      Alert.alert('Error', 'Could not fetch location.');
     } finally {
       setIsLocating(false);
     }
@@ -77,63 +75,53 @@ export function useCapture() {
   const mutation = useMutation({
     mutationFn: async () => {
       const formData = new FormData();
-      formData.append('type', type.toUpperCase());
-      const finalContent = content.trim() || (type === 'image' ? 'Image capture' : '');
+
+      const finalType = mediaUri ? 'IMAGE' : type; 
+      formData.append('type', finalType);
+
+
+      const finalContent = content.trim() || (mediaUri ? 'Image Snapshot' : '');
+      if (!finalContent) throw new Error("Please enter some text.");
+      
       formData.append('content', finalContent);
 
-      if (type === 'image' && mediaUri) {
-        const filename = mediaUri.split('/').pop() ?? 'upload.jpg';
+      if (mediaUri) {
+        const filename = mediaUri.split('/').pop() || 'upload.jpg';
         const match = /\.(\w+)$/.exec(filename);
-        const fileType = match ? `image/${match[1]}` : 'image/jpeg';
+        const mimeType = match ? `image/${match[1]}` : 'image/jpeg';
 
-        formData.append('file', {
-          uri: mediaUri,
+        formData.append('image', {
+          uri: Platform.OS === 'ios' ? mediaUri.replace('file://', '') : mediaUri,
           name: filename,
-          type: fileType,
-        } as any); 
+          type: mimeType,
+        } as any);
       }
 
       const { data } = await api.post('/fragments', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { Accept: 'application/json' },
+        transformRequest: (data) => data,
       });
       return data;
     },
-    
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       Keyboard.dismiss();
       resetMode();
       setLastInsight(data?.insight?.content ?? null);
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['timeline'] }),
-        queryClient.invalidateQueries({ queryKey: ['echoes'] }),
-        queryClient.invalidateQueries({ queryKey: ['activity-stats'] })
-      ]);
-      
-      if (!data?.insight) {
-        Alert.alert("Saved", "Your moment has been captured.");
-      }
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
+      if (!data?.insight) Alert.alert("Success", "Fragment saved.");
     },
     onError: (error: any) => {
-      console.error(error);
-      Alert.alert('Upload Failed', error.response?.data?.message || 'Something went wrong.');
-    },
+      const msg = error.response?.data?.message || "Upload failed.";
+      Alert.alert("Error", Array.isArray(msg) ? msg[0] : msg);
+    }
   });
 
-  const submit = () => {
-    mutation.mutate();
-  };
-
   return {
-    content,
-    setContent,
-    type,
-    setType,
-    mediaUri,
-    pickImage,
-    detectLocation,
-    isLocating,
-    submit,
+    content, setContent,
+    type, setType,
+    mediaUri, pickImage,
+    detectLocation, isLocating,
+    submit: mutation.mutate,
     isPending: mutation.isPending,
     lastInsight,
     resetMode,

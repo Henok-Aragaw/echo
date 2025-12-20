@@ -1,39 +1,41 @@
 import React, { useState } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, 
-  KeyboardAvoidingView, Platform, ScrollView
+  KeyboardAvoidingView, Platform, ScrollView, Pressable
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/auth-store';
 import { useColorScheme } from 'nativewind';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import { Mail, Lock, ArrowRight, Chrome, Zap } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react-native';
 import clsx from 'clsx';
-
-// Initialize WebBrowser
-WebBrowser.maybeCompleteAuthSession();
-
-// API URL
-const API_BASE_URL = "http://192.168.43.176:3000/api"; 
 
 export default function SignIn() {
   const router = useRouter();
-  const { signIn, setSession } = useAuthStore();
+  const { signIn } = useAuthStore();
   const { colorScheme } = useColorScheme();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const isDark = colorScheme === 'dark';
-  const iconColor = isDark ? '#a8a29e' : '#78716c'; 
-  const activeIconColor = isDark ? '#e7e5e4' : '#292524'; 
+  
+  // Gentle color palette
+  const iconColor = isDark ? '#78716c' : '#a8a29e'; // stone-500 / stone-400
+  const activeIconColor = isDark ? '#e7e5e4' : '#44403c'; // stone-200 / stone-700
+  
+  // Explicitly defining the cursor color to ensure visibility
+  const cursorColor = isDark ? '#e7e5e4' : '#1c1917'; 
 
   const handleSignIn = async () => {
-    if(!email || !password) return Alert.alert("Missing Fields", "Please enter your email and password.");
+    if(!email || !password) {
+        return Alert.alert("Missing Fields", "Please enter your email and password.");
+    }
+    
     setLoading(true);
     try {
       await signIn(email, password);
@@ -46,175 +48,140 @@ export default function SignIn() {
     }
   };
 
-  // --- GOOGLE SIGN IN ---
-  const handleGoogleSignIn = async () => {
-    try {
-      setGoogleLoading(true);
-      
-      // 1. Generate the Deep Link
-      // This creates: exp://192.168.43.176:8081/--/auth-callback
-      const callbackURL = Linking.createURL('/auth-callback'); 
-      
-      // 2. Manual Origin Construction (Fixes "Origin: null" error)
-      // We parse the callbackURL to extract just the scheme and host
-      // e.g. exp://192.168.43.176:8081
-      const parsed = new URL(callbackURL);
-      const origin = `${parsed.protocol}//${parsed.host}`;
-
-      console.log("------------------------------------------");
-      console.log("🔹 Callback URL:", callbackURL);
-      console.log("🔹 Origin Header:", origin);
-      console.log("ℹ️  Ensure '" + origin + "' is in backend trustedOrigins!");
-      console.log("------------------------------------------");
-
-      // 3. Initiate Auth with Backend
-      const response = await fetch(`${API_BASE_URL}/auth/sign-in/social`, {
-        method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "Origin": origin // Sending the manually constructed origin
-        },
-        body: JSON.stringify({
-            provider: "google",
-            callbackURL: callbackURL 
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.url) {
-         console.error("❌ Auth Init Failed:", data);
-         throw new Error(data.message || "Failed to initiate Google Login");
-      }
-
-      // 4. Open Web Browser
-      const result = await WebBrowser.openAuthSessionAsync(data.url, callbackURL);
-
-      // 5. Handle Redirect Success
-      if (result.type === 'success' && result.url) {
-        // The URL will look like: exp://...?token=...
-        const parsedUrl = new URL(result.url);
-        const params = new URLSearchParams(parsedUrl.search);
-        
-        // Better Auth (Bearer Plugin) returns token in URL
-        const token = params.get('token') || params.get('session_token');
-
-        if (token) {
-          await setSession(token);
-          router.replace('/(tabs)/home');
-        } else {
-            console.log("❌ No token in URL:", result.url);
-            Alert.alert("Error", "Login succeeded but no token was returned.");
-        }
-      } else {
-        // User cancelled or closed the browser
-        console.log("Browser result:", result.type);
-      }
-    } catch (error: any) {
-      console.log("Google Auth Error:", error);
-      Alert.alert("Google Sign In", "Could not complete sign in. Check console logs.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   return (
-    <SafeAreaView className="flex-1 bg-stone-50 dark:bg-stone-950">
+    <SafeAreaView className="flex-1 bg-[#FAFAF9] dark:bg-[#0c0a09]">
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
         <ScrollView 
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} 
-          className="px-6"
+          className="px-8"
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View className="mb-10">
-            <View className="h-14 w-14 bg-stone-900 dark:bg-stone-100 rounded-2xl mb-6 items-center justify-center shadow-lg shadow-stone-200 dark:shadow-none">
-              <Zap size={24} color={isDark ? "black" : "white"} fill={isDark ? "black" : "white"} />
+          {/* --- Header --- */}
+          <View className="items-center mb-12">
+            <View className="h-16 w-16 bg-stone-200/50 dark:bg-stone-800/50 rounded-full mb-6 items-center justify-center border border-stone-100 dark:border-stone-800">
+              <Sparkles size={24} color={isDark ? "#e7e5e4" : "#44403c"} strokeWidth={1.5} />
             </View>
-            <Text className="text-4xl text-stone-900 dark:text-stone-50 font-bold tracking-tight mb-2">
-              Welcome back
+            <Text className="text-3xl text-stone-800 dark:text-stone-100 font-bold tracking-tight mb-3 text-center">
+              Welcome Back
             </Text>
-            <Text className="text-stone-500 dark:text-stone-400 text-lg font-medium leading-relaxed">
-              Sign in to sync your memories.
+            <Text className="text-stone-500 dark:text-stone-400 text-base font-normal leading-relaxed text-center max-w-[250px]">
+              Enter your credentials to access your personal space.
             </Text>
           </View>
 
-          <View className="space-y-5">
-            {/* Inputs... */}
+          {/* --- Form --- */}
+          <View className="space-y-6">
+            
+            {/* Email Input */}
             <View className="space-y-2">
-              <Text className="text-stone-900 dark:text-stone-300 font-semibold ml-1 text-sm uppercase tracking-wide">Email</Text>
-              <View className="flex-row items-center bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl h-14 px-4 focus:border-stone-900 dark:focus:border-stone-500 transition-colors">
-                <Mail size={20} color={email ? activeIconColor : iconColor} />
+              <Text className="text-stone-700 dark:text-stone-300 font-medium ml-1 text-xs uppercase tracking-widest opacity-80">
+                Email Address
+              </Text>
+              <View 
+                className={clsx(
+                  "flex-row items-center bg-white dark:bg-stone-900 border rounded-2xl h-16 px-5",
+                  emailFocused 
+                    ? "border-stone-500 dark:border-stone-400" 
+                    : "border-stone-200 dark:border-stone-800"
+                )}
+              >
+                <Mail size={20} color={email || emailFocused ? activeIconColor : iconColor} strokeWidth={1.5} />
                 <TextInput
-                  placeholder="you@example.com"
+                  placeholder="name@example.com"
                   placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-                  className="flex-1 ml-3 text-stone-900 dark:text-stone-100 text-base font-medium h-full"
+                  // Removed h-full, added flex-1 and py-0 to prevent cursor clipping
+                  className="flex-1 ml-4 text-stone-800 dark:text-stone-100 text-base font-medium py-0" 
                   autoCapitalize="none"
                   keyboardType="email-address"
                   value={email}
                   onChangeText={setEmail}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                  // Set both properties to ensure cursor is visible on all OS versions
+                  selectionColor={cursorColor} 
+                  cursorColor={cursorColor}
+                  textAlignVertical="center"
+                  autoCorrect={false}
                 />
               </View>
             </View>
 
+            {/* Password Input */}
             <View className="space-y-2">
-              <Text className="text-stone-900 dark:text-stone-300 font-semibold ml-1 text-sm uppercase tracking-wide">Password</Text>
-              <View className="flex-row items-center bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl h-14 px-4 focus:border-stone-900 dark:focus:border-stone-500 transition-colors">
-                <Lock size={20} color={password ? activeIconColor : iconColor} />
+              <Text className="text-stone-700 dark:text-stone-300 font-medium ml-1 text-xs uppercase tracking-widest opacity-80">
+                Password
+              </Text>
+              <View 
+                className={clsx(
+                  "flex-row items-center bg-white dark:bg-stone-900 border rounded-2xl h-16 px-5",
+                  passwordFocused 
+                    ? "border-stone-500 dark:border-stone-400" 
+                    : "border-stone-200 dark:border-stone-800"
+                )}
+              >
+                <Lock size={20} color={password || passwordFocused ? activeIconColor : iconColor} strokeWidth={1.5} />
                 <TextInput
                   placeholder="••••••••"
                   placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-                  className="flex-1 ml-3 text-stone-900 dark:text-stone-100 text-base font-medium h-full"
-                  secureTextEntry
+                  className="flex-1 ml-4 text-stone-800 dark:text-stone-100 text-base font-medium py-0"
+                  secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  selectionColor={cursorColor}
+                  cursorColor={cursorColor}
+                  textAlignVertical="center"
                 />
+                <Pressable onPress={() => setShowPassword(!showPassword)} className="p-2">
+                   {showPassword ? (
+                     <EyeOff size={20} color={iconColor} strokeWidth={1.5} />
+                   ) : (
+                     <Eye size={20} color={iconColor} strokeWidth={1.5} />
+                   )}
+                </Pressable>
               </View>
             </View>
 
+            {/* Submit Button */}
             <TouchableOpacity 
               onPress={handleSignIn}
               disabled={loading}
+              activeOpacity={0.9}
               className={clsx(
-                "h-14 rounded-2xl flex-row items-center justify-center shadow-lg shadow-stone-300/50 dark:shadow-none mt-2",
-                loading ? "bg-stone-700 dark:bg-stone-800" : "bg-stone-900 dark:bg-stone-100"
+                "h-16 rounded-2xl flex-row items-center justify-center mt-6 shadow-lg",
+                loading ? "bg-stone-600" : "bg-stone-800 dark:bg-stone-200",
+                "shadow-stone-300 dark:shadow-none"
               )}
             >
-              {loading ? <ActivityIndicator color="white" /> : (
+              {loading ? <ActivityIndicator color={isDark ? "black" : "white"} /> : (
                 <>
-                  <Text className="text-stone-50 dark:text-stone-950 font-bold text-lg mr-2">Sign In</Text>
-                  <ArrowRight size={20} color={isDark ? "#0c0a09" : "#fafaf9"} strokeWidth={2.5} />
-                </>
-              )}
-            </TouchableOpacity>
-
-            <View className="flex-row items-center my-6">
-              <View className="flex-1 h-[1px] bg-stone-200 dark:bg-stone-800" />
-              <Text className="mx-4 text-stone-400 font-medium text-xs tracking-widest">OR CONTINUE WITH</Text>
-              <View className="flex-1 h-[1px] bg-stone-200 dark:bg-stone-800" />
-            </View>
-
-            <TouchableOpacity 
-              onPress={handleGoogleSignIn}
-              disabled={googleLoading}
-              className="h-14 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl flex-row items-center justify-center space-x-3 shadow-sm"
-            >
-              {googleLoading ? <ActivityIndicator color={isDark ? "white" : "black"} /> : (
-                <>
-                  <Chrome size={20} color={isDark ? "white" : "black"} />
-                  <Text className="text-stone-700 dark:text-stone-200 font-bold text-base">Google</Text>
+                  <Text className={clsx(
+                      "font-bold text-lg mr-2 tracking-wide",
+                      isDark ? "text-stone-900" : "text-stone-50"
+                  )}>
+                    Sign In
+                  </Text>
+                  <ArrowRight size={20} color={isDark ? "#1c1917" : "#fafaf9"} strokeWidth={2.5} />
                 </>
               )}
             </TouchableOpacity>
           </View>
           
-          <View className="flex-row justify-center mt-12 mb-6">
-            <Text className="text-stone-500 font-medium">Don&apos;t have an account? </Text>
+          {/* --- Footer --- */}
+          <View className="flex-row justify-center mt-16">
+            <Text className="text-stone-500 dark:text-stone-400 font-medium text-base">
+                New here?{" "}
+            </Text>
             <Link href="/(auth)/sign-up" asChild>
               <TouchableOpacity>
-                <Text className="text-stone-900 dark:text-stone-100 font-bold underline decoration-stone-400">Create one</Text>
+                <Text className="text-stone-800 dark:text-stone-100 font-bold text-base decoration-stone-800 underline">
+                  Create Account
+                </Text>
               </TouchableOpacity>
             </Link>
           </View>
