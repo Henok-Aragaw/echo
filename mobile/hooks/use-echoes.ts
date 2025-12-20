@@ -1,7 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-// We no longer need useFocusEffect here
-// import { useFocusEffect } from '@react-navigation/native'; 
+import { useFocusEffect } from '@react-navigation/native'; 
 import { api } from '@/lib/api';
 import { parseISO, getHours, format } from 'date-fns';
 
@@ -15,39 +14,26 @@ export function useEchoes() {
   const echoesQuery = useQuery({
     queryKey: ['echoes'], 
     queryFn: async () => {
-      const { data } = await api.get('/fragments/memories');
+      const { data } = await api.get('/echoes');
       return data as DailyMemory[];
     },
-
-    staleTime: 1000 * 60 * 5, 
   });
 
   const activityQuery = useQuery({
     queryKey: ['activity-stats'], 
     queryFn: async () => {
+      // This matches the new endpoint added to FragmentsController
       const { data } = await api.get('/fragments/timeline?take=50');
       return data as any[];
     },
-    // Also add staleTime here
-    staleTime: 1000 * 60 * 5,
   });
 
-  /*
-   * REMOVED THIS BLOCK
-   *
-   * This was causing the refetch on every tab focus. React Query handles
-   * refetching on focus automatically, but only when data is stale.
-   * Since we invalidate the query in `useCapture`, this is all we need.
-   *
-  
-    useFocusEffect(
-      useCallback(() => {
-          echoesQuery.refetch();
-          activityQuery.refetch();
-      }, [echoesQuery.refetch, activityQuery.refetch])
-    );
-
-  */
+  useFocusEffect(
+    useCallback(() => {
+        echoesQuery.refetch();
+        activityQuery.refetch();
+    }, [])
+  );
 
   const stats = useMemo(() => {
     if (!activityQuery.data || activityQuery.data.length === 0) return null;
@@ -102,7 +88,6 @@ export function useEchoes() {
     stats,
     isLoading: echoesQuery.isLoading || activityQuery.isLoading,
     refetch: () => {
-        // We keep the refetch function here so pull-to-refresh still works
         echoesQuery.refetch();
         activityQuery.refetch();
     }

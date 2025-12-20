@@ -24,7 +24,6 @@ import {
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import clsx from 'clsx';
-
 import { useCapture } from '@/hooks/use-capture';
 
 export default function HomeScreen() {
@@ -44,14 +43,21 @@ export default function HomeScreen() {
   } = useCapture();
 
   const { colorScheme } = useColorScheme();
-  const canSubmit = content.length > 0 || mediaUri !== null;
+  const isDark = colorScheme === 'dark';
+  
+  const canSubmit = content.trim().length > 0 || mediaUri !== null;
 
+  // Animation Refs
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
 
+  // Animation Logic
   useEffect(() => {
+    let pulseLoop: Animated.CompositeAnimation;
+    let spinLoop: Animated.CompositeAnimation;
+
     if (isPending) {
-      Animated.loop(
+      pulseLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1,
@@ -66,20 +72,28 @@ export default function HomeScreen() {
             easing: Easing.inOut(Easing.ease),
           }),
         ])
-      ).start();
+      );
 
-      Animated.loop(
+      spinLoop = Animated.loop(
         Animated.timing(spinAnim, {
           toValue: 1,
           duration: 3000,
           useNativeDriver: true,
           easing: Easing.linear,
         })
-      ).start();
+      );
+
+      pulseLoop.start();
+      spinLoop.start();
     } else {
       pulseAnim.setValue(0.4);
       spinAnim.setValue(0);
     }
+
+    return () => {
+      pulseLoop?.stop();
+      spinLoop?.stop();
+    };
   }, [isPending]);
 
   const spin = spinAnim.interpolate({
@@ -110,11 +124,21 @@ export default function HomeScreen() {
           </View>
 
           {/* Main Card */}
-          <View className="min-h-[240px] rounded-[32px] p-5 bg-white dark:bg-stone-900/40 border border-stone-200 dark:border-stone-800 shadow-sm flex justify-between">
+          <View 
+            className="min-h-[240px] rounded-[32px] p-5 border border-stone-200 dark:border-stone-800 flex justify-between"
+            style={{
+              backgroundColor: isDark ? 'rgba(28, 25, 23, 0.4)' : '#ffffff',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 2,
+            }}
+          >
             {/* Content Area */}
             <View className="flex-1">
-              {type === 'image' && mediaUri ? (
-                <View className="relative h-48 rounded-2xl overflow-hidden mb-4">
+              {type === 'IMAGE' && mediaUri ? (
+                <View className="relative h-48 rounded-2xl overflow-hidden mb-4 bg-stone-100 dark:bg-stone-800">
                   <RNImage
                     source={{ uri: mediaUri }}
                     className="w-full h-full"
@@ -123,18 +147,24 @@ export default function HomeScreen() {
 
                   <TouchableOpacity
                     onPress={resetMode}
-                    className="absolute top-3 right-3 bg-black/70 p-2 rounded-full"
+                    className="absolute top-3 right-3 p-2 rounded-full backdrop-blur-md"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
                   >
                     <X size={16} color="#fff" />
                   </TouchableOpacity>
 
-                  <TextInput
-                    value={content}
-                    onChangeText={setContent}
-                    placeholder="Add a caption..."
-                    placeholderTextColor="#9ca3af"
-                    className="absolute bottom-0 w-full px-4 py-3 bg-black/70 text-white text-sm"
-                  />
+                  <View 
+                    className="absolute bottom-0 w-full backdrop-blur-md p-1"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+                  >
+                    <TextInput
+                        value={content}
+                        onChangeText={setContent}
+                        placeholder="Add a caption..."
+                        placeholderTextColor="#d6d3d1"
+                        className="text-white text-sm px-3 py-2 font-medium"
+                    />
+                  </View>
                 </View>
               ) : (
                 <TextInput
@@ -145,110 +175,126 @@ export default function HomeScreen() {
                   placeholder={
                     isLocating
                       ? 'Locating...'
-                      : type === 'link'
+                      : type === 'LINK'
                       ? 'Paste a URL...'
-                      : type === 'location'
+                      : type === 'LOCATION'
                       ? 'Where are you?'
                       : 'Pour your thoughts here...'
                   }
-                  placeholderTextColor={
-                    colorScheme === 'dark' ? '#57534e' : '#a8a29e'
-                  }
-                  className="flex-1 text-xl font-light text-stone-800 dark:text-stone-100"
+                  placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
+                  className="flex-1 text-xl font-light text-stone-800 dark:text-stone-100 leading-8"
+                  style={{ minHeight: 120 }}
                 />
               )}
             </View>
 
             {/* Footer Toolbar */}
             <View className="flex-row justify-between items-center pt-4 border-t border-stone-100 dark:border-stone-800/50">
+              
               {/* Mode Selector */}
-              <View className="flex-row gap-4 p-2 rounded-full border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950/50">
+              <View 
+                className="flex-row gap-3 p-1.5 rounded-full border border-stone-200 dark:border-stone-800"
+                style={{ backgroundColor: isDark ? 'rgba(12, 10, 9, 0.5)' : '#fafaf9' }}
+              >
+                
+                {/* Text Mode */}
                 <TouchableOpacity
                   onPress={() => {
-                    resetMode();
-                    setType('text');
+                    if (type === 'IMAGE') resetMode();
+                    setType('TEXT');
                   }}
                   className={clsx(
-                    'p-2 rounded-full',
-                    type === 'text' && 'bg-white dark:bg-stone-800'
+                    'p-3 rounded-full transition-all',
+                    type === 'TEXT' ? 'bg-white dark:bg-stone-800' : 'bg-transparent'
                   )}
+                  style={type === 'TEXT' ? { shadowColor: '#000', shadowOpacity: 0.1, elevation: 1 } : {}}
                 >
-                  <Type size={20} color="#78716c" />
+                  <Type size={20} color={type === 'TEXT' ? (isDark ? '#e7e5e4' : '#44403c') : '#a8a29e'} />
                 </TouchableOpacity>
 
+                {/* Image Mode */}
                 <TouchableOpacity
                   onPress={pickImage}
                   className={clsx(
-                    'p-2 rounded-full',
-                    type === 'image' && 'bg-white dark:bg-stone-800'
+                    'p-3 rounded-full transition-all',
+                    type === 'IMAGE' ? 'bg-white dark:bg-stone-800' : 'bg-transparent'
                   )}
+                  style={type === 'IMAGE' ? { shadowColor: '#000', shadowOpacity: 0.1, elevation: 1 } : {}}
                 >
-                  <Image size={20} color="#78716c" />
+                  <Image size={20} color={type === 'IMAGE' ? (isDark ? '#e7e5e4' : '#44403c') : '#a8a29e'} />
                 </TouchableOpacity>
 
+                {/* Link Mode */}
                 <TouchableOpacity
                   onPress={() => {
                     resetMode();
-                    setType('link');
+                    setType('LINK');
                   }}
                   className={clsx(
-                    'p-2 rounded-full',
-                    type === 'link' && 'bg-white dark:bg-stone-800'
+                    'p-3 rounded-full transition-all',
+                    type === 'LINK' ? 'bg-white dark:bg-stone-800' : 'bg-transparent'
                   )}
+                  style={type === 'LINK' ? { shadowColor: '#000', shadowOpacity: 0.1, elevation: 1 } : {}}
                 >
-                  <LinkIcon size={20} color="#78716c" />
+                  <LinkIcon size={20} color={type === 'LINK' ? (isDark ? '#e7e5e4' : '#44403c') : '#a8a29e'} />
                 </TouchableOpacity>
 
+                {/* Location Mode */}
                 <TouchableOpacity
                   onPress={() => {
                     resetMode();
-                    setType('location');
                     detectLocation();
                   }}
                   className={clsx(
-                    'p-2 rounded-full',
-                    type === 'location' && 'bg-white dark:bg-stone-800'
+                    'p-3 rounded-full transition-all',
+                    type === 'LOCATION' ? 'bg-white dark:bg-stone-800' : 'bg-transparent'
                   )}
+                  style={type === 'LOCATION' ? { shadowColor: '#000', shadowOpacity: 0.1, elevation: 1 } : {}}
                 >
                   {isLocating ? (
                     <ActivityIndicator size="small" color="#78716c" />
                   ) : (
-                    <MapPin size={20} color="#78716c" />
+                    <MapPin size={20} color={type === 'LOCATION' ? (isDark ? '#e7e5e4' : '#44403c') : '#a8a29e'} />
                   )}
                 </TouchableOpacity>
               </View>
 
               {/* Submit Button */}
               <TouchableOpacity
-                onPress={submit}
+                onPress={() => submit()}
                 disabled={!canSubmit || isPending}
-                className="w-14 h-14 rounded-full items-center justify-center transition-opacity"
+                className="w-14 h-14 rounded-full items-center justify-center"
                 style={{
                   backgroundColor: canSubmit
-                    ? colorScheme === 'dark'
-                      ? '#f5f5f4'
-                      : '#1c1917'
-                    : '#e5e5e5',
-                  opacity: isPending ? 0.5 : 1,
+                    ? isDark ? '#f5f5f4' : '#1c1917'
+                    : isDark ? '#292524' : '#e5e5e5',
+                  opacity: isPending ? 0.7 : 1,
                 }}
               >
                 <Send
-                  size={22}
-                  color={canSubmit ? (colorScheme === 'dark' ? '#000' : '#fff') : '#78716c'}
+                  size={20}
+                  color={canSubmit 
+                    ? isDark ? '#1c1917' : '#fafaf9' 
+                    : '#78716c'
+                  }
+                  strokeWidth={2.5}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* AI Analysis Animation Area */}
+          {/* AI / Loading Feedback */}
           {isPending ? (
-            <View className="mt-10 mb-10 items-center justify-center">
+            <View className="mt-12 items-center justify-center">
               <Animated.View 
-                style={{ opacity: pulseAnim, transform: [{ scale: pulseAnim }] }}
-                className="flex-row items-center gap-3 bg-stone-200/50 dark:bg-stone-800/50 px-6 py-3 rounded-full"
+                className="flex-row items-center gap-3 px-6 py-3 rounded-full border border-stone-100 dark:border-stone-800"
+                style={[
+                  { opacity: pulseAnim, transform: [{ scale: pulseAnim }] },
+                  { backgroundColor: isDark ? 'rgba(28, 25, 23, 0.5)' : '#e7e5e4' }
+                ]}
               >
                 <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                  <Sparkles size={18} className="text-stone-500 dark:text-stone-400" color="currentColor" />
+                  <Sparkles size={18} color={isDark ? "#a8a29e" : "#57534e"} />
                 </Animated.View>
                 <Text className="text-sm font-medium text-stone-600 dark:text-stone-400 tracking-wide">
                   Distilling your moment...
@@ -256,16 +302,16 @@ export default function HomeScreen() {
               </Animated.View>
             </View>
           ) : lastInsight ? (
-            <View className="mt-10 mb-10">
-              <View className="flex-row justify-center items-center gap-2 mb-4">
+            <View className="mt-12 mb-10">
+              <View className="flex-row justify-center items-center gap-2 mb-4 opacity-70">
                 <Sparkles size={14} color="#a8a29e" />
-                <Text className="text-xs uppercase tracking-widest text-stone-500">
+                <Text className="text-xs uppercase tracking-[0.15em] text-stone-500">
                   Echo Reflection
                 </Text>
               </View>
 
               <View className="p-8 rounded-[32px] bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
-                <Text className="text-xl italic text-center text-stone-700 dark:text-stone-300">
+                <Text className="text-lg italic text-center text-stone-700 dark:text-stone-300 leading-relaxed font-serif">
                   “{lastInsight}”
                 </Text>
               </View>
