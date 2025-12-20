@@ -11,7 +11,6 @@ export const getAuth = async () => {
     return authInstance;
   }
 
-  // 1. Load dependencies dynamically
   const { betterAuth } = await _importDynamic("better-auth");
   const { prismaAdapter } = await _importDynamic("better-auth/adapters/prisma");
   const { bearer } = await _importDynamic("better-auth/plugins");
@@ -22,7 +21,7 @@ export const getAuth = async () => {
     }),
 
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: process.env.BETTER_AUTH_URL || "https://echo-ten-eta.vercel.app", 
 
     user: {
       deleteUser: {
@@ -46,24 +45,28 @@ export const getAuth = async () => {
       database: {
         generateId: false,
       },
-      useSecureCookies: false,
+
+      useSecureCookies: false, 
       cookie: {
-        secure: false,
+        secure: false, 
         sameSite: "lax",
       },
     },
 
     trustedOrigins: [
-      "http://localhost:3000",
-      "myapp://",
-      "http://localhost:5500",
-      process.env.FRONTEND_URL || ""
+      "http://localhost:3000", 
+      "myapp://",              
+      "http://localhost:5500", 
+      "exp://192.168.1.100:8081", 
+      "http://192.168.1.100:8081", 
+      /exp:\/\/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5})/, 
+      /http:\/\/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5})/,
+      process.env.FRONTEND_URL || "" 
     ],
   });
 
   return authInstance;
 };
-
 
 function _forceBundling() {
     if (false) {
