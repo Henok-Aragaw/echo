@@ -44,18 +44,13 @@ export default function SignIn() {
     }
   };
 
-  // --- GOOGLE SIGN IN ---
+
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
       
-      // 1. Get the dynamic Expo URL (e.g. exp://192.168.43.176:8081/...)
-      // This is where the backend will redirect the user AFTER Google.
       const callbackURL = Linking.createURL('/auth-callback'); 
       
-      // 2. Extract the base origin (e.g. exp://192.168.43.176:8081)
-      // We send this as a header so the backend knows it's us.
-      // Since we added this IP to "trustedOrigins", the backend will accept it.
       const origin = new URL(callbackURL).origin;
 
       console.log("Initiating Google Auth with:");
