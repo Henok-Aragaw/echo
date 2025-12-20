@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { APIError, createAuthMiddleware } from "better-auth/api";
 import { normalizeName, VALID_DOMAIN } from "./utils";
 
 const prisma = new PrismaClient();
@@ -16,6 +15,10 @@ export const getAuth = async () => {
   const { betterAuth } = await _importDynamic("better-auth");
   const { prismaAdapter } = await _importDynamic("better-auth/adapters/prisma");
   const { bearer } = await _importDynamic("better-auth/plugins");
+  
+  const { APIError, createAuthMiddleware } = await _importDynamic("better-auth/api");
+  
+  const { expo } = await _importDynamic("@better-auth/expo");
 
   authInstance = betterAuth({
     database: prismaAdapter(prisma, {
@@ -23,20 +26,17 @@ export const getAuth = async () => {
     }),
 
     secret: process.env.BETTER_AUTH_SECRET,
+    basePath: "/api/auth", 
     baseURL: process.env.BETTER_AUTH_URL || "https://echo-ten-eta.vercel.app", 
 
     user: {
-      deleteUser: {
-        enabled: true,
-      },
-      changeEmail: {
-        enabled: true,
-      }
+      deleteUser: { enabled: true },
+      changeEmail: { enabled: true }
     },
 
     emailAndPassword: {
       enabled: true,
-      autoSignIn:true
+      autoSignIn: true
     },
 
     socialProviders: {
@@ -47,7 +47,7 @@ export const getAuth = async () => {
     },
 
     hooks: {
-      before:createAuthMiddleware(async(ctx) => {
+      before: createAuthMiddleware(async(ctx: any) => {
         if(ctx.path === '/sign-up/email') {
           const email = String(ctx.body.email);
           const domain = email.split("@")[1];
@@ -73,13 +73,13 @@ export const getAuth = async () => {
       })
     },
 
-    plugins: [bearer()],
+    plugins: [
+        bearer(),
+        expo() 
+    ],
 
     advanced: {
-      database: {
-        generateId: false,
-      },
-
+      database: { generateId: false },
       useSecureCookies: false, 
       cookie: {
         secure: false, 
@@ -102,12 +102,3 @@ export const getAuth = async () => {
 
   return authInstance;
 };
-
-function _forceBundling() {
-    if (false) {
-        require("better-auth");
-        require("better-auth/adapters/prisma");
-        require("better-auth/plugins");
-        require("better-auth/node"); 
-    }
-}
