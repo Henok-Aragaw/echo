@@ -1,5 +1,6 @@
 import { 
-  Controller, Post, Get, Body, UseGuards, UseInterceptors, UploadedFile 
+  Controller, Post, Get, Body, UseGuards, UseInterceptors, UploadedFile, 
+  Query
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FragmentsService } from './fragments.service';
@@ -31,14 +32,18 @@ export class FragmentsController {
       });
       
       dto.mediaUrl = result.secure_url;
-      dto.type = 'IMAGE' as any; // Force type if file exists
+      dto.type = 'IMAGE' as any; 
     }
 
     return this.fragmentsService.create(user.id, dto);
   }
 
   @Get('timeline')
-  async getTimeline(@CurrentUser() user: any) {
-    return this.fragmentsService.getTimeline(user.id);
+  async getTimeline(@CurrentUser() user: any,
+    @Query('skip') skip?: number,
+    @Query('take') take?: number
+
+) {
+    return this.fragmentsService.getTimeline(user.id, skip || 0, take || 20);
   }
 }

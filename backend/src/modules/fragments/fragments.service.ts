@@ -48,11 +48,13 @@ export class FragmentsService {
     });
   }
 
-  async getTimeline(userId: string) {
+  async getTimeline(userId: string, skip: number = 0, take: number = 20) {
     return prisma.fragment.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: { insight: true },
+      skip: Number(skip),
+      take: Number(take),
     });
   }
 }

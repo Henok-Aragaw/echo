@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, FlatList, Dimensions, TouchableOpacity} from 'react-native';
+import { View, Text, FlatList, Dimensions, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { storage } from '@/lib/storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight } from 'lucide-react-native';
+import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
@@ -12,19 +13,37 @@ const SLIDES = [
     id: '1',
     title: 'Capture the Moment',
     description: 'Save your thoughts, images, or locations instantly. Let the noise fade away.',
-    // placeholder image/icon logic here
+    emoji: '📸'
   },
   {
     id: '2',
     title: 'Find Meaning',
     description: 'AI quietly reflects on your input, offering a poetic perspective on your day.',
+    emoji: '✨'
   },
   {
     id: '3',
     title: 'Your Daily Memory',
     description: 'At night, receive a crafted story of your day. A memory to keep forever.',
+    emoji: '🌙'
   },
 ];
+
+// 1. Separate Dot Component to handle its own animation safely
+const Dot = ({ isActive }: { isActive: boolean }) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: withSpring(isActive ? 32 : 8, { damping: 15, stiffness: 100 }), // Animate width (w-8 vs w-2)
+      backgroundColor: withTiming(isActive ? '#f5f5f4' : '#292524', { duration: 200 }), // Animate color
+    };
+  });
+
+  return (
+    <Animated.View 
+      style={[animatedStyle, { height: 8, borderRadius: 9999, marginHorizontal: 4 }]} 
+    />
+  );
+};
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -45,30 +64,28 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-stone-100">
-      {/* Skip Button */}
+    <SafeAreaView className="flex-1 bg-stone-950">
       <View className="flex-row justify-end px-6 pt-4">
         <TouchableOpacity onPress={handleFinish}>
           <Text className="text-stone-400 font-medium text-base">Skip</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Slides */}
       <FlatList
         ref={flatListRef}
         data={SLIDES}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        // Use standard scroll event to update state
         onMomentumScrollEnd={(e) => {
           const index = Math.round(e.nativeEvent.contentOffset.x / width);
           setCurrentIndex(index);
         }}
         renderItem={({ item }) => (
           <View style={{ width, height: height * 0.6 }} className="justify-center items-center px-8">
-            <View className="w-64 h-64 bg-stone-100 rounded-3xl mb-10 items-center justify-center border border-stone-800">
-               {/* Placeholder for Graphic */}
-               <Text className="text-6xl">✨</Text>
+            <View className="w-64 h-64 bg-stone-900 rounded-3xl mb-10 items-center justify-center border border-stone-800">
+               <Text className="text-6xl">{item.emoji}</Text>
             </View>
             <Text className="text-3xl text-stone-100 font-light mb-4 text-center tracking-wide">
               {item.title}
@@ -80,21 +97,14 @@ export default function OnboardingScreen() {
         )}
       />
 
-      {/* Footer Navigation */}
       <View className="h-40 px-8 justify-between pb-10">
-        {/* Pagination Dots */}
-        <View className="flex-row justify-center space-x-2 mb-6">
+        {/* 2. Use the new Dot component here */}
+        <View className="flex-row justify-center mb-6 h-4 items-center">
           {SLIDES.map((_, index) => (
-            <View
-              key={index}
-              className={`h-2 rounded-full transition-all ${
-                currentIndex === index ? 'w-8 bg-stone-100' : 'w-2 bg-stone-800'
-              }`}
-            />
+            <Dot key={index} isActive={currentIndex === index} />
           ))}
         </View>
 
-        {/* Action Button */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={handleNext}

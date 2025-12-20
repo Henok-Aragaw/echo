@@ -1,34 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import React from 'react';
+import { 
+  View, Text, TextInput, TouchableOpacity, ScrollView, 
+  ActivityIndicator, Image as RNImage, KeyboardAvoidingView, Platform 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image, MapPin, Link as LinkIcon, Type, Send } from 'lucide-react-native';
-import { api } from '@/lib/api';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Image, MapPin, Link as LinkIcon, Type, Send, X, Sparkles } from 'lucide-react-native';
+import { useCapture } from '@/hooks/use-capture';
+import clsx from 'clsx';
 
 export default function HomeScreen() {
-  const [content, setContent] = useState('');
-  const [type, setType] = useState<'text' | 'image' | 'link' | 'location'>('text');
-  const [lastSummary, setLastSummary] = useState<string | null>(null);
-  const queryClient = useQueryClient();
+  const { 
+    content, setContent, type, setType, mediaUri, 
+    pickImage, detectLocation, isLocating, 
+    submit, isPending, lastInsight, resetMode
+  } = useCapture();
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        content,
-        type,
-      };
-      const { data } = await api.post('/fragments', payload);
-      return data;
-    },
-    onSuccess: (data) => {
-      setContent('');
-      setLastSummary(data.insight?.content || "Saved to memory.");
-      queryClient.invalidateQueries({ queryKey: ['timeline'] });
-    },
-    onError: () => {
-      Alert.alert("Error", "Could not save fragment.");
-    }
-  });
+  // Helper to check if we can submit
+  const canSubmit = (content.length > 0 || mediaUri !== null);
 
   return (
     <SafeAreaView className="flex-1 bg-stone-950">
@@ -36,69 +24,134 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-6 pt-10">
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-6 pt-8">
           
-          {/* Header */}
-          <Text className="text-stone-400 font-medium uppercase tracking-widest text-xs mb-2">
-            Capture
-          </Text>
-          <Text className="text-3xl text-stone-100 font-light mb-8">
-            What just happened?
-          </Text>
+          <View className="mb-8">
+            <Text className="text-stone-400 font-medium uppercase tracking-[0.2em] text-xs mb-3">
+              Daily Capture
+            </Text>
+            <Text className="text-4xl text-stone-100 font-thin leading-tight">
+              What is happening <Text className="text-stone-500">now?</Text>
+            </Text>
+          </View>
 
-          {/* Input Area */}
-          <View className="bg-stone-900 rounded-3xl p-4 border border-stone-800 min-h-[200px]">
-            <TextInput 
-              className="text-stone-100 text-lg font-light leading-7 flex-1"
-              multiline
-              placeholder="Write a thought..."
-              placeholderTextColor="#57534e"
-              value={content}
-              onChangeText={setContent}
-              textAlignVertical="top"
-            />
+          {/* 
+             CRITICAL FIX: 
+             Removed 'transition-all'.
+             Used standard className for static styles.
+          */}
+          <View className="rounded-[32px] p-5 border min-h-[240px] flex-col justify-between bg-stone-900/40 border-stone-800">
             
-            {/* Type Selectors */}
-            <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-stone-800">
-              <View className="flex-row space-x-4">
-                <TouchableOpacity onPress={() => setType('text')}>
-                  <Type size={20} color={type === 'text' ? '#fafaf9' : '#57534e'} />
+            <View className="flex-1 relative">
+              {type === 'image' && mediaUri ? (
+                <View className="relative w-full h-48 rounded-2xl overflow-hidden mb-4 bg-stone-950">
+                  <RNImage source={{ uri: mediaUri }} className="w-full h-full opacity-80" resizeMode="cover" />
+                  <TouchableOpacity 
+                    onPress={resetMode}
+                    className="absolute top-3 right-3 bg-stone-900/80 p-2 rounded-full backdrop-blur-md"
+                  >
+                    <X size={16} color="#fff" />
+                  </TouchableOpacity>
+                  <TextInput 
+                    className="absolute bottom-0 w-full bg-stone-900/80 text-stone-100 px-4 py-3 text-sm font-light"
+                    placeholder="Add a caption..."
+                    placeholderTextColor="#78716c"
+                    value={content}
+                    onChangeText={setContent}
+                  />
+                </View>
+              ) : (
+                <TextInput 
+                  // CRITICAL FIX: Removed dynamic className logic here
+                  className="text-stone-100 text-xl font-light leading-8 flex-1 pb-4"
+                  multiline
+                  placeholder={
+                    isLocating ? "Locating..." :
+                    type === 'link' ? "Paste a URL..." :
+                    type === 'location' ? "Where are you?" :
+                    "Pour your thoughts here..."
+                  }
+                  placeholderTextColor="#44403c"
+                  value={content}
+                  onChangeText={setContent}
+                  textAlignVertical="top"
+                  autoFocus={false}
+                />
+              )}
+            </View>
+
+            <View className="flex-row justify-between items-end pt-4 border-t border-stone-800/50">
+              <View className="flex-row gap-4 bg-stone-950/50 p-2 rounded-full border border-stone-800/50">
+                <TouchableOpacity 
+                  onPress={() => { resetMode(); setType('text'); }}
+                  className={clsx("p-2 rounded-full", type === 'text' && "bg-stone-800")}
+                >
+                  <Type size={20} color={type === 'text' ? '#fff' : '#57534e'} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setType('image')}>
-                  <Image size={20} color={type === 'image' ? '#fafaf9' : '#57534e'} />
+
+                <TouchableOpacity 
+                  onPress={pickImage}
+                  className={clsx("p-2 rounded-full", type === 'image' && "bg-stone-800")}
+                >
+                  <Image size={20} color={type === 'image' ? '#fff' : '#57534e'} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setType('link')}>
-                  <LinkIcon size={20} color={type === 'link' ? '#fafaf9' : '#57534e'} />
+
+                <TouchableOpacity 
+                  onPress={() => { resetMode(); setType('link'); }}
+                  className={clsx("p-2 rounded-full", type === 'link' && "bg-stone-800")}
+                >
+                  <LinkIcon size={20} color={type === 'link' ? '#fff' : '#57534e'} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setType('location')}>
-                  <MapPin size={20} color={type === 'location' ? '#fafaf9' : '#57534e'} />
+
+                <TouchableOpacity 
+                  onPress={detectLocation}
+                  className={clsx("p-2 rounded-full", type === 'location' && "bg-stone-800")}
+                >
+                  {isLocating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MapPin size={20} color={type === 'location' ? '#fff' : '#57534e'} />
+                  )}
                 </TouchableOpacity>
               </View>
 
+              {/* 
+                 CRITICAL FIX: 
+                 We use style={} for background color instead of clsx/className.
+                 This prevents NativeWind from recalculating on every keystroke.
+              */}
               <TouchableOpacity 
-                onPress={() => mutate()}
-                disabled={!content || isPending}
-                className={`w-10 h-10 rounded-full items-center justify-center ${content ? 'bg-stone-100' : 'bg-stone-800'}`}
+                onPress={() => submit()}
+                disabled={!canSubmit || isPending}
+                className="w-14 h-14 rounded-full items-center justify-center"
+                style={{
+                  backgroundColor: canSubmit ? '#f5f5f4' : '#292524', // stone-100 vs stone-800
+                  opacity: canSubmit ? 1 : 0.5
+                }}
               >
                 {isPending ? (
-                    <ActivityIndicator size="small" color="#000" />
+                  <ActivityIndicator color="#0c0a09" />
                 ) : (
-                    <Send size={18} color={content ? '#000' : '#57534e'} />
+                  <Send size={24} color={canSubmit ? "#0c0a09" : "#78716c"} strokeWidth={1.5} />
                 )}
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* AI Reflection Output */}
-          {lastSummary && (
-            <View className="mt-8 bg-stone-900/50 p-6 rounded-2xl border border-stone-800/50">
-               <View className="flex-row items-center mb-3">
-                  <Text className="text-lg mr-2">✨</Text>
-                  <Text className="text-stone-400 text-xs uppercase tracking-wider">Reflection</Text>
-               </View>
-               <Text className="text-stone-300 italic font-light leading-6">
-                 &quot;{lastSummary}&quot;
-               </Text>
+          {lastInsight && (
+            <View className="mt-10 mx-2">
+              <View className="flex-row items-center justify-center mb-4 space-x-2">
+                 <Sparkles size={14} color="#a8a29e" />
+                 <Text className="text-stone-500 text-xs uppercase tracking-widest text-center">
+                   Echo Reflection
+                 </Text>
+              </View>
+              
+              <View className="bg-gradient-to-b from-stone-900 to-stone-950 p-8 rounded-[32px] border border-stone-800/50 shadow-2xl">
+                 <Text className="text-stone-300 text-xl font-light italic leading-9 text-center">
+                   &quot;{lastInsight}&quot;
+                 </Text>
+              </View>
             </View>
           )}
 
