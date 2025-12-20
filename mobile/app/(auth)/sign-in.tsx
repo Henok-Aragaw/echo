@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, 
-  KeyboardAvoidingView, Platform, ScrollView
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  Alert, 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  Platform,
+  ScrollView
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,8 +19,10 @@ import * as Linking from 'expo-linking';
 import { Mail, Lock, ArrowRight, Chrome, Zap } from 'lucide-react-native';
 import clsx from 'clsx';
 
+// 1. Configure WebBrowser to handle the redirect closing
 WebBrowser.maybeCompleteAuthSession();
 
+// Hardcoded for reliability
 const API_BASE_URL = "https://echo-ten-eta.vercel.app/api"; 
 
 export default function SignIn() {
@@ -30,6 +39,7 @@ export default function SignIn() {
   const iconColor = isDark ? '#a8a29e' : '#78716c'; 
   const activeIconColor = isDark ? '#e7e5e4' : '#292524'; 
 
+  // Standard Email Sign In
   const handleSignIn = async () => {
     if(!email || !password) return Alert.alert("Missing Fields", "Please enter your email and password.");
     setLoading(true);
@@ -44,24 +54,29 @@ export default function SignIn() {
     }
   };
 
-
+  // --- GOOGLE SIGN IN ---
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
       
+      // 1. Generate the callback URL (e.g., exp://192.168.43.176:8081/--/auth-callback)
       const callbackURL = Linking.createURL('/auth-callback'); 
       
-      const origin = new URL(callbackURL).origin;
+      // 2. FIX: Manually construct the Origin.
+      // The 'URL' object in React Native returns "null" for .origin on custom schemes like exp://
+      const parsed = new URL(callbackURL);
+      const origin = `${parsed.protocol}//${parsed.host}`;
 
-      console.log("Initiating Google Auth with:");
+      console.log("Initiating Google Auth");
       console.log("Callback:", callbackURL);
-      console.log("Origin:", origin);
+      console.log("Origin:", origin); // Should now be exp://192.168.43.176:8081
 
+      // 3. POST to Backend
       const response = await fetch(`${API_BASE_URL}/auth/sign-in/social`, {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
-            "Origin": origin 
+            "Origin": origin // <--- Now sending the valid string
         },
         body: JSON.stringify({
             provider: "google",
@@ -76,15 +91,14 @@ export default function SignIn() {
          throw new Error(data.message || "Failed to initiate Google Login");
       }
 
-      // 3. Open Browser
+      // 4. Open Browser
       const result = await WebBrowser.openAuthSessionAsync(data.url, callbackURL);
 
-      // 4. Handle Success
+      // 5. Handle Success
       if (result.type === 'success' && result.url) {
         const parsedUrl = new URL(result.url);
         const params = new URLSearchParams(parsedUrl.search);
         
-        // Better Auth (via Bearer plugin) returns token directly
         const token = params.get('token') || params.get('session_token');
 
         if (token) {
