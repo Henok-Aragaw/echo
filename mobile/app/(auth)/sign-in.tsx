@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  ActivityIndicator, 
-  KeyboardAvoidingView, 
-  Platform,
-  ScrollView
+  View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, 
+  KeyboardAvoidingView, Platform, ScrollView
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,11 +12,11 @@ import * as Linking from 'expo-linking';
 import { Mail, Lock, ArrowRight, Chrome, Zap } from 'lucide-react-native';
 import clsx from 'clsx';
 
-// 1. Configure WebBrowser to handle the redirect closing
+// Initialize WebBrowser
 WebBrowser.maybeCompleteAuthSession();
 
-// Hardcoded for reliability
-const API_BASE_URL = "https://echo-ten-eta.vercel.app/api"; 
+// API URL
+const API_BASE_URL = "http://192.168.43.176:3000/api"; 
 
 export default function SignIn() {
   const router = useRouter();
@@ -39,7 +32,6 @@ export default function SignIn() {
   const iconColor = isDark ? '#a8a29e' : '#78716c'; 
   const activeIconColor = isDark ? '#e7e5e4' : '#292524'; 
 
-  // Standard Email Sign In
   const handleSignIn = async () => {
     if(!email || !password) return Alert.alert("Missing Fields", "Please enter your email and password.");
     setLoading(true);
@@ -59,24 +51,28 @@ export default function SignIn() {
     try {
       setGoogleLoading(true);
       
-      // 1. Generate the callback URL (e.g., exp://192.168.43.176:8081/--/auth-callback)
+      // 1. Generate the Deep Link
+      // This creates: exp://192.168.43.176:8081/--/auth-callback
       const callbackURL = Linking.createURL('/auth-callback'); 
       
-      // 2. FIX: Manually construct the Origin.
-      // The 'URL' object in React Native returns "null" for .origin on custom schemes like exp://
+      // 2. Manual Origin Construction (Fixes "Origin: null" error)
+      // We parse the callbackURL to extract just the scheme and host
+      // e.g. exp://192.168.43.176:8081
       const parsed = new URL(callbackURL);
       const origin = `${parsed.protocol}//${parsed.host}`;
 
-      console.log("Initiating Google Auth");
-      console.log("Callback:", callbackURL);
-      console.log("Origin:", origin); // Should now be exp://192.168.43.176:8081
+      console.log("------------------------------------------");
+      console.log("🔹 Callback URL:", callbackURL);
+      console.log("🔹 Origin Header:", origin);
+      console.log("ℹ️  Ensure '" + origin + "' is in backend trustedOrigins!");
+      console.log("------------------------------------------");
 
-      // 3. POST to Backend
+      // 3. Initiate Auth with Backend
       const response = await fetch(`${API_BASE_URL}/auth/sign-in/social`, {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
-            "Origin": origin // <--- Now sending the valid string
+            "Origin": origin // Sending the manually constructed origin
         },
         body: JSON.stringify({
             provider: "google",
@@ -87,30 +83,36 @@ export default function SignIn() {
       const data = await response.json();
 
       if (!response.ok || !data.url) {
-         console.error("Auth Error Body:", data);
+         console.error("❌ Auth Init Failed:", data);
          throw new Error(data.message || "Failed to initiate Google Login");
       }
 
-      // 4. Open Browser
+      // 4. Open Web Browser
       const result = await WebBrowser.openAuthSessionAsync(data.url, callbackURL);
 
-      // 5. Handle Success
+      // 5. Handle Redirect Success
       if (result.type === 'success' && result.url) {
+        // The URL will look like: exp://...?token=...
         const parsedUrl = new URL(result.url);
         const params = new URLSearchParams(parsedUrl.search);
         
+        // Better Auth (Bearer Plugin) returns token in URL
         const token = params.get('token') || params.get('session_token');
 
         if (token) {
           await setSession(token);
           router.replace('/(tabs)/home');
         } else {
-            Alert.alert("Error", "Authentication successful but no token received.");
+            console.log("❌ No token in URL:", result.url);
+            Alert.alert("Error", "Login succeeded but no token was returned.");
         }
+      } else {
+        // User cancelled or closed the browser
+        console.log("Browser result:", result.type);
       }
     } catch (error: any) {
       console.log("Google Auth Error:", error);
-      Alert.alert("Google Sign In", error.message || "Process cancelled or failed.");
+      Alert.alert("Google Sign In", "Could not complete sign in. Check console logs.");
     } finally {
       setGoogleLoading(false);
     }
@@ -140,6 +142,7 @@ export default function SignIn() {
           </View>
 
           <View className="space-y-5">
+            {/* Inputs... */}
             <View className="space-y-2">
               <Text className="text-stone-900 dark:text-stone-300 font-semibold ml-1 text-sm uppercase tracking-wide">Email</Text>
               <View className="flex-row items-center bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl h-14 px-4 focus:border-stone-900 dark:focus:border-stone-500 transition-colors">
