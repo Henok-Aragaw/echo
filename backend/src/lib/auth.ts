@@ -104,8 +104,7 @@ export const getAuth = async () => {
       "myapp://",       
       "echo-app://",       
       "http://localhost:5500", 
-      "exp://192.168.1.100:8081", 
-      "http://192.168.1.100:8081", 
+      "exp://192.168.43.176:8081",
       process.env.FRONTEND_URL || "" 
     ],
   });

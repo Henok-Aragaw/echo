@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  ActivityIndicator, 
-  KeyboardAvoidingView, 
-  Platform,
-  ScrollView
+  View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, 
+  KeyboardAvoidingView, Platform, ScrollView
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,10 +12,8 @@ import * as Linking from 'expo-linking';
 import { Mail, Lock, ArrowRight, Chrome, Zap } from 'lucide-react-native';
 import clsx from 'clsx';
 
-// 1. Configure WebBrowser to handle the redirect closing
 WebBrowser.maybeCompleteAuthSession();
 
-// Hardcoded for reliability
 const API_BASE_URL = "https://echo-ten-eta.vercel.app/api"; 
 
 export default function SignIn() {
@@ -35,15 +26,12 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // UI Theme Helpers
   const isDark = colorScheme === 'dark';
   const iconColor = isDark ? '#a8a29e' : '#78716c'; 
   const activeIconColor = isDark ? '#e7e5e4' : '#292524'; 
 
-  // Standard Email Sign In
   const handleSignIn = async () => {
     if(!email || !password) return Alert.alert("Missing Fields", "Please enter your email and password.");
-    
     setLoading(true);
     try {
       await signIn(email, password);
@@ -56,38 +44,35 @@ export default function SignIn() {
     }
   };
 
-  // Modern Google OAuth Flow
+  // --- GOOGLE SIGN IN ---
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
       
-      // 1. Define the deep link we want to return to (e.g. exp://... or echo-app://...)
+      // 1. Get the dynamic Expo URL (e.g. exp://192.168.43.176:8081/...)
+      // This is where the backend will redirect the user AFTER Google.
       const callbackURL = Linking.createURL('/auth-callback'); 
+      
+      // 2. Extract the base origin (e.g. exp://192.168.43.176:8081)
+      // We send this as a header so the backend knows it's us.
+      // Since we added this IP to "trustedOrigins", the backend will accept it.
+      const origin = new URL(callbackURL).origin;
 
-      // 2. Define a static Origin that matches the Backend "trustedOrigins"
-      // This tricks the backend into accepting the request from any device IP
-      const origin = "echo-app://"; 
+      console.log("Initiating Google Auth with:");
+      console.log("Callback:", callbackURL);
+      console.log("Origin:", origin);
 
-      // 3. POST to Backend
       const response = await fetch(`${API_BASE_URL}/auth/sign-in/social`, {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
-            "Origin": origin // <--- Sending "echo-app://" to pass backend check
+            "Origin": origin 
         },
         body: JSON.stringify({
             provider: "google",
             callbackURL: callbackURL 
         })
       });
-
-      // 4. Handle Errors (Non-JSON responses usually mean server crash)
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-          const text = await response.text();
-          console.error("Non-JSON Response:", text);
-          throw new Error("Server returned an invalid response (not JSON). Check backend logs.");
-      }
 
       const data = await response.json();
 
@@ -96,14 +81,15 @@ export default function SignIn() {
          throw new Error(data.message || "Failed to initiate Google Login");
       }
 
-      // 5. Open the secure browser
+      // 3. Open Browser
       const result = await WebBrowser.openAuthSessionAsync(data.url, callbackURL);
 
-      // 6. Handle the success redirect
+      // 4. Handle Success
       if (result.type === 'success' && result.url) {
         const parsedUrl = new URL(result.url);
         const params = new URLSearchParams(parsedUrl.search);
         
+        // Better Auth (via Bearer plugin) returns token directly
         const token = params.get('token') || params.get('session_token');
 
         if (token) {
@@ -132,7 +118,6 @@ export default function SignIn() {
           className="px-6"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <View className="mb-10">
             <View className="h-14 w-14 bg-stone-900 dark:bg-stone-100 rounded-2xl mb-6 items-center justify-center shadow-lg shadow-stone-200 dark:shadow-none">
               <Zap size={24} color={isDark ? "black" : "white"} fill={isDark ? "black" : "white"} />
@@ -141,11 +126,10 @@ export default function SignIn() {
               Welcome back
             </Text>
             <Text className="text-stone-500 dark:text-stone-400 text-lg font-medium leading-relaxed">
-              Sign in to sync your memories and access your personal timeline.
+              Sign in to sync your memories.
             </Text>
           </View>
 
-          {/* Form */}
           <View className="space-y-5">
             <View className="space-y-2">
               <Text className="text-stone-900 dark:text-stone-300 font-semibold ml-1 text-sm uppercase tracking-wide">Email</Text>
@@ -176,11 +160,6 @@ export default function SignIn() {
                   onChangeText={setPassword}
                 />
               </View>
-              <TouchableOpacity className="self-end pt-1">
-                <Text className="text-stone-500 hover:text-stone-800 dark:hover:text-stone-300 font-medium text-sm">
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
             </View>
 
             <TouchableOpacity 
@@ -191,9 +170,7 @@ export default function SignIn() {
                 loading ? "bg-stone-700 dark:bg-stone-800" : "bg-stone-900 dark:bg-stone-100"
               )}
             >
-              {loading ? (
-                <ActivityIndicator color={isDark ? "white" : "white"} />
-              ) : (
+              {loading ? <ActivityIndicator color="white" /> : (
                 <>
                   <Text className="text-stone-50 dark:text-stone-950 font-bold text-lg mr-2">Sign In</Text>
                   <ArrowRight size={20} color={isDark ? "#0c0a09" : "#fafaf9"} strokeWidth={2.5} />
@@ -212,18 +189,15 @@ export default function SignIn() {
               disabled={googleLoading}
               className="h-14 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl flex-row items-center justify-center space-x-3 shadow-sm"
             >
-              {googleLoading ? (
-                 <ActivityIndicator color={isDark ? "white" : "black"} />
-              ) : (
+              {googleLoading ? <ActivityIndicator color={isDark ? "white" : "black"} /> : (
                 <>
                   <Chrome size={20} color={isDark ? "white" : "black"} />
                   <Text className="text-stone-700 dark:text-stone-200 font-bold text-base">Google</Text>
                 </>
               )}
             </TouchableOpacity>
-
           </View>
-
+          
           <View className="flex-row justify-center mt-12 mb-6">
             <Text className="text-stone-500 font-medium">Don&apos;t have an account? </Text>
             <Link href="/(auth)/sign-up" asChild>
@@ -232,7 +206,6 @@ export default function SignIn() {
               </TouchableOpacity>
             </Link>
           </View>
-          
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
