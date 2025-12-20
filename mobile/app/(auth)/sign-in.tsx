@@ -22,7 +22,7 @@ import clsx from 'clsx';
 // 1. Configure WebBrowser to handle the redirect closing
 WebBrowser.maybeCompleteAuthSession();
 
-// Hardcoded for reliability in this file, or import from your config
+// Hardcoded for reliability
 const API_BASE_URL = "https://echo-ten-eta.vercel.app/api"; 
 
 export default function SignIn() {
@@ -37,8 +37,8 @@ export default function SignIn() {
 
   // UI Theme Helpers
   const isDark = colorScheme === 'dark';
-  const iconColor = isDark ? '#a8a29e' : '#78716c'; // stone-400 / stone-500
-  const activeIconColor = isDark ? '#e7e5e4' : '#292524'; // stone-200 / stone-800
+  const iconColor = isDark ? '#a8a29e' : '#78716c'; 
+  const activeIconColor = isDark ? '#e7e5e4' : '#292524'; 
 
   // Standard Email Sign In
   const handleSignIn = async () => {
@@ -56,57 +56,66 @@ export default function SignIn() {
     }
   };
 
-  // Modern Google OAuth Flow (Fixes 404)
+  // Modern Google OAuth Flow
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
       
-      // 1. Define the deep link we want to return to
-      // In Dev: exp://192.168.x.x:8081/--/auth-callback
-      // In Prod: echo-app://auth-callback
+      // 1. Define the deep link we want to return to (e.g. exp://... or echo-app://...)
       const callbackURL = Linking.createURL('/auth-callback'); 
 
-      // 2. POST to Backend to ask for the Google Consent URL
-      // We do NOT open the URL directly. We ask Better Auth to generate it.
+      // 2. Define a static Origin that matches the Backend "trustedOrigins"
+      // This tricks the backend into accepting the request from any device IP
+      const origin = "echo-app://"; 
+
+      // 3. POST to Backend
       const response = await fetch(`${API_BASE_URL}/auth/sign-in/social`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "Origin": origin // <--- Sending "echo-app://" to pass backend check
+        },
         body: JSON.stringify({
             provider: "google",
             callbackURL: callbackURL 
         })
       });
 
+      // 4. Handle Errors (Non-JSON responses usually mean server crash)
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          console.error("Non-JSON Response:", text);
+          throw new Error("Server returned an invalid response (not JSON). Check backend logs.");
+      }
+
       const data = await response.json();
 
       if (!response.ok || !data.url) {
+         console.error("Auth Error Body:", data);
          throw new Error(data.message || "Failed to initiate Google Login");
       }
 
-      // 3. Open the secure browser with the URL the backend gave us
+      // 5. Open the secure browser
       const result = await WebBrowser.openAuthSessionAsync(data.url, callbackURL);
 
-      // 4. Handle the success redirect
+      // 6. Handle the success redirect
       if (result.type === 'success' && result.url) {
         const parsedUrl = new URL(result.url);
         const params = new URLSearchParams(parsedUrl.search);
         
-        // Better Auth typically returns the token as a query param named 'token' or 'session_token'
-        // depending on your specific plugin configuration
         const token = params.get('token') || params.get('session_token');
 
         if (token) {
           await setSession(token);
           router.replace('/(tabs)/home');
         } else {
-            // Fallback: Sometimes token is in the hash part #token=...
-            // If you don't use hash routing, you can ignore this
             Alert.alert("Error", "Authentication successful but no token received.");
         }
       }
     } catch (error: any) {
       console.log("Google Auth Error:", error);
-      Alert.alert("Google Sign In", "Process cancelled or failed.");
+      Alert.alert("Google Sign In", error.message || "Process cancelled or failed.");
     } finally {
       setGoogleLoading(false);
     }
@@ -123,14 +132,11 @@ export default function SignIn() {
           className="px-6"
           showsVerticalScrollIndicator={false}
         >
-          
-          {/* --- Header Section --- */}
+          {/* Header */}
           <View className="mb-10">
-            {/* Logo Abstract */}
             <View className="h-14 w-14 bg-stone-900 dark:bg-stone-100 rounded-2xl mb-6 items-center justify-center shadow-lg shadow-stone-200 dark:shadow-none">
               <Zap size={24} color={isDark ? "black" : "white"} fill={isDark ? "black" : "white"} />
             </View>
-            
             <Text className="text-4xl text-stone-900 dark:text-stone-50 font-bold tracking-tight mb-2">
               Welcome back
             </Text>
@@ -139,10 +145,8 @@ export default function SignIn() {
             </Text>
           </View>
 
-          {/* --- Form Section --- */}
+          {/* Form */}
           <View className="space-y-5">
-            
-            {/* Email Input */}
             <View className="space-y-2">
               <Text className="text-stone-900 dark:text-stone-300 font-semibold ml-1 text-sm uppercase tracking-wide">Email</Text>
               <View className="flex-row items-center bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl h-14 px-4 focus:border-stone-900 dark:focus:border-stone-500 transition-colors">
@@ -159,7 +163,6 @@ export default function SignIn() {
               </View>
             </View>
 
-            {/* Password Input */}
             <View className="space-y-2">
               <Text className="text-stone-900 dark:text-stone-300 font-semibold ml-1 text-sm uppercase tracking-wide">Password</Text>
               <View className="flex-row items-center bg-white dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-2xl h-14 px-4 focus:border-stone-900 dark:focus:border-stone-500 transition-colors">
@@ -180,7 +183,6 @@ export default function SignIn() {
               </TouchableOpacity>
             </View>
 
-            {/* Sign In Button */}
             <TouchableOpacity 
               onPress={handleSignIn}
               disabled={loading}
@@ -199,14 +201,12 @@ export default function SignIn() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
             <View className="flex-row items-center my-6">
               <View className="flex-1 h-[1px] bg-stone-200 dark:bg-stone-800" />
               <Text className="mx-4 text-stone-400 font-medium text-xs tracking-widest">OR CONTINUE WITH</Text>
               <View className="flex-1 h-[1px] bg-stone-200 dark:bg-stone-800" />
             </View>
 
-            {/* Google Button */}
             <TouchableOpacity 
               onPress={handleGoogleSignIn}
               disabled={googleLoading}
@@ -224,7 +224,6 @@ export default function SignIn() {
 
           </View>
 
-          {/* --- Footer --- */}
           <View className="flex-row justify-center mt-12 mb-6">
             <Text className="text-stone-500 font-medium">Don&apos;t have an account? </Text>
             <Link href="/(auth)/sign-up" asChild>
