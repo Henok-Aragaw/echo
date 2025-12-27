@@ -12,7 +12,7 @@ export class DailyMemoryService {
 
   constructor(private aiService: AiService) {}
 
-  // Get All List
+  // Get All Infinite Scroll
   async getEchoes(userId: string, cursor?: string, limit: number = 10) {
     const items = await prisma.dailyMemory.findMany({
       where: { userId },
@@ -31,42 +31,51 @@ export class DailyMemoryService {
   }
 
   async getMemory(userId: string, dateString: string) {
-    const targetDate = new Date(dateString);
-    const dayStart = startOfDay(targetDate);
-    const dayEnd = endOfDay(targetDate);
+
+    const startDate = new Date(`${dateString}T00:00:00.000Z`);
+    const endDate = new Date(`${dateString}T23:59:59.999Z`);
+
+    console.log("Searching for memory between:", startDate.toISOString(), "and", endDate.toISOString());
 
     return prisma.dailyMemory.findFirst({
       where: {
-        userId,
+        userId: userId,
         date: {
-          gte: dayStart, 
-          lte: dayEnd    
+          gte: startDate, 
+          lte: endDate,   
         },
       },
     });
   }
 
+  // Generate Today 
   async generateToday(userId: string) {
     const today = new Date();
     await this.createMemoryForUser(userId, today);
-    return this.getMemory(userId, today.toISOString());
+    return this.getMemory(userId, today.toISOString().split('T')[0]);
   }
 
+  // Cron Job 
   @Cron(CronExpression.EVERY_DAY_AT_11PM)
   async generateDailyMemories() {
     this.logger.log('Starting Daily Memory Generation...');
     const todayStart = startOfDay(new Date());
     const todayEnd = endOfDay(new Date());
+
     const activeUsers = await prisma.user.findMany({
-      where: { fragments: { some: { createdAt: { gte: todayStart, lte: todayEnd } } } },
+      where: {
+        fragments: { some: { createdAt: { gte: todayStart, lte: todayEnd } } }
+      },
       select: { id: true }
     });
+
     for (const user of activeUsers) {
       await this.createMemoryForUser(user.id, new Date());
     }
   }
 
   async createMemoryForUser(userId: string, date: Date) {
+    
     const dayStart = startOfDay(date);
     const dayEnd = endOfDay(date);
 
@@ -80,17 +89,28 @@ export class DailyMemoryService {
     const summary = await this.aiService.generateDailyMemory(fragments);
 
     const existing = await prisma.dailyMemory.findFirst({
-        where: { userId, date: { gte: dayStart, lte: dayEnd } }
+        where: { 
+            userId, 
+            date: { gte: dayStart, lte: dayEnd } 
+        }
     });
 
     if (existing) {
+        // Update existing
         await prisma.dailyMemory.update({
             where: { id: existing.id },
             data: { summary }
         });
     } else {
+
+        const normalizedDate = new Date(date.toISOString().split('T')[0] + 'T00:00:00.000Z');
+        
         await prisma.dailyMemory.create({
-            data: { userId, date: dayStart, summary }
+            data: { 
+                userId, 
+                date: normalizedDate, 
+                summary 
+            }
         });
     }
   }
