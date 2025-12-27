@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AiService } from '../ai/ai.service';
-import { startOfDay, endOfDay, parseISO } from 'date-fns';
+import { startOfDay, endOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();
 
@@ -12,11 +12,11 @@ export class DailyMemoryService {
 
   constructor(private aiService: AiService) {}
 
-  // Get All
+  // Get All Infinite Scroll Logic
   async getEchoes(userId: string, cursor?: string, limit: number = 10) {
     const items = await prisma.dailyMemory.findMany({
       where: { userId },
-      take: limit + 1, 
+      take: limit + 1, // Fetch 1 extra to check if there is a next page
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: { date: 'desc' },
     });
@@ -27,32 +27,36 @@ export class DailyMemoryService {
       nextCursor = items[items.length - 1].id;
     }
 
+    // Return object format { items, nextCursor }
     return { items, nextCursor };
   }
 
-  // Get Single by Date
+  // Get Single Memory Range Search Fix
   async getMemory(userId: string, dateString: string) {
-    const date = new Date(dateString);
-    const dayStart = startOfDay(date);
+    const targetDate = new Date(dateString);
+    const dayStart = startOfDay(targetDate);
+    const dayEnd = endOfDay(targetDate);
 
-    return prisma.dailyMemory.findUnique({
+
+    return prisma.dailyMemory.findFirst({
       where: {
-        userId_date: {
-          userId,
-          date: dayStart
-        }
-      }
+        userId,
+        date: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+      },
     });
   }
 
-  // Generate Today
+  // Manual Generation
   async generateToday(userId: string) {
     const today = new Date();
     await this.createMemoryForUser(userId, today);
     return this.getMemory(userId, today.toISOString());
   }
 
-  // Cron Job 
+  // Cron Job Automatic Nightly Generation
   @Cron(CronExpression.EVERY_DAY_AT_11PM)
   async generateDailyMemories() {
     this.logger.log('Starting Daily Memory Generation...');
@@ -84,10 +88,20 @@ export class DailyMemoryService {
 
     const summary = await this.aiService.generateDailyMemory(fragments);
 
-    await prisma.dailyMemory.upsert({
-      where: { userId_date: { userId, date: dayStart } },
-      update: { summary },
-      create: { userId, date: dayStart, summary }
+
+    const existing = await prisma.dailyMemory.findFirst({
+        where: { userId, date: { gte: dayStart, lte: dayEnd } }
     });
+
+    if (existing) {
+        await prisma.dailyMemory.update({
+            where: { id: existing.id },
+            data: { summary }
+        });
+    } else {
+        await prisma.dailyMemory.create({
+            data: { userId, date: dayStart, summary }
+        });
+    }
   }
 }
