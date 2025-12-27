@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AiService } from '../ai/ai.service';
-import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { startOfDay, endOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();
 
@@ -12,7 +12,7 @@ export class DailyMemoryService {
 
   constructor(private aiService: AiService) {}
 
-  // Triggered every night at 11:55 PM
+  // Triggered every night at 11:00 PM
   @Cron(CronExpression.EVERY_DAY_AT_11PM)
   async generateDailyMemories() {
     this.logger.log('Starting Daily Memory Generation...');
@@ -37,6 +37,13 @@ export class DailyMemoryService {
     }
   }
 
+
+  async generateToday(userId: string) {
+    const today = new Date();
+    await this.createMemoryForUser(userId, today);
+    return this.getMemory(userId, today.toISOString());
+  }
+
   async createMemoryForUser(userId: string, date: Date) {
     const dayStart = startOfDay(date);
     const dayEnd = endOfDay(date);
@@ -55,7 +62,7 @@ export class DailyMemoryService {
     // Generate AI Summary
     const summary = await this.aiService.generateDailyMemory(fragments);
 
-    // Upsert Memory
+    // Upsert Memory 
     await prisma.dailyMemory.upsert({
       where: {
         userId_date: {
