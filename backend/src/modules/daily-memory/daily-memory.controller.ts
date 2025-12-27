@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { DailyMemoryService } from './daily-memory.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { CurrentUser } from '../../common/decorators/user.decorator';
@@ -8,19 +8,29 @@ import { CurrentUser } from '../../common/decorators/user.decorator';
 export class DailyMemoryController {
   constructor(private readonly service: DailyMemoryService) {}
 
+  // Get All with Pagination
   @Get()
-  async getAllEchoes(@CurrentUser() user: any) {
-    return this.service.getEchoes(user.id);
+  async getAllEchoes(
+    @CurrentUser() user: any,
+    @Query('cursor') cursor?: string
+  ) {
+    return this.service.getEchoes(user.id, cursor);
   }
 
+  // Force Generate Today
   @Post('today')
   async generateToday(@CurrentUser() user: any) {
     return this.service.generateToday(user.id);
   }
 
+  // Get Specific Date (YYYY-MM-DD)
   @Get(':date')
   async getDailyMemory(@CurrentUser() user: any, @Param('date') date: string) {
-    // Date format YYYY-MM-DD
-    return this.service.getMemory(user.id, date);
+    const memory = await this.service.getMemory(user.id, date);
+    if (!memory) {
+
+      return null; 
+    }
+    return memory;
   }
 }
